@@ -17,8 +17,8 @@ const DEFAULTS = Object.freeze({
   peakSuspicion: 10,
   secrets: [], // unlocked secret ids
   finale: false,
-  sound: false,
-  lang: "en", // "en" | "id"
+  sound: true,
+  lang: "id", // "en" | "id"
   visits: 0,
   lastSeen: 0,
   presserName: "",
@@ -87,7 +87,8 @@ export function loadState() {
       interactions: Math.max(0, Math.floor(Number(parsed.interactions) || 0)),
       secrets: Array.isArray(parsed.secrets) ? parsed.secrets.filter((s) => typeof s === "string") : [],
       mood: MOODS[parsed.mood] ? parsed.mood : DEFAULTS.mood,
-      sound: Boolean(parsed.sound),
+      sound: parsed.sound !== undefined ? Boolean(parsed.sound) : DEFAULTS.sound,
+      lang: parsed.lang === "en" || parsed.lang === "id" ? parsed.lang : DEFAULTS.lang,
       finale: Boolean(parsed.finale),
       visits: Math.max(0, Math.floor(Number(parsed.visits) || 0)),
       presserName: typeof parsed.presserName === "string" ? parsed.presserName.slice(0, 24) : "",
@@ -110,7 +111,7 @@ export function saveState() {
 }
 
 export function wipeState() {
-  state = { ...freshState(), sound: state.sound, visits: 1 };
+  state = { ...freshState(), sound: state.sound, lang: state.lang, visits: 1 };
   session.presses = 0;
   session.pressTimes = [];
   session.recentLines = [];
@@ -133,6 +134,7 @@ export function wipeState() {
       /* nothing to do */
     }
   }
+  saveState();
   emit();
 }
 

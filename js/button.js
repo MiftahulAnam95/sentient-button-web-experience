@@ -55,17 +55,20 @@ import { play } from "./sound.js";
 import { unlock } from "./secrets.js";
 import {
   lang as getLang,
-  t,
+  moodLabel,
   moodBtnLabel,
   moodTag,
   moodReactions,
   rapidLine,
-  cooldownLine,
+  cooldownLines,
   scriptedPress,
   reverse as getReverse,
   honesty as getHonesty,
   fakeError as getFakeError,
-  hoverLine,
+  hoverLines,
+  logLines,
+  suspicionWordLabel,
+  tFormSubmitter,
 } from "./lang.js";
 
 /* ---------- tuning constants (all the "feel" lives here) ---------- */
@@ -164,18 +167,20 @@ export function press() {
     return;
   }
   if (session.scriptRunning === "error") {
-      const isIDerr = getLang() === "id";
-      say(
-        isIDerr ? "Tulisannya ERROR. Nge-press lebih keras gak bakal ngeresolve error." : "It says ERROR. Pressing it harder will not resolve the error.",
-        { tag: isIDerr ? "SISTEM" : "SYSTEM", tone: "alarm" }
-      );
+    const isIDerr = getLang() === "id";
+    say(
+      isIDerr
+        ? "Tulisannya udah jelas ERROR bestie. Dipencet makin kenceng juga gak bakal bener."
+        : "It says ERROR. Pressing it harder will not resolve the error.",
+      { tag: isIDerr ? "SISTEM" : "SYSTEM", tone: "alarm" }
+    );
     play("deny");
     return;
   }
   if (session.scriptRunning === "honesty") {
     const isIDh = getLang() === "id";
-    say(isIDh ? "…Biar gue selesai." : "…Let me finish.", {
-      tag: isIDh ? "PELAHAN" : "QUIETLY",
+    say(isIDh ? "…Dengerin gue curhat sampe abis dulu napa." : "…Let me finish.", {
+      tag: isIDh ? "DEEP TALK" : "QUIETLY",
       tone: "soft",
     });
     return;
@@ -212,9 +217,9 @@ export function press() {
     adjust({ trust: 12, suspicion: -8 });
     refreshMoodVisuals();
     renderMeters();
-    const rev = getReverse();
-  say(rev.rewarded, { tag: getLang() === "id" ? "OFF THE RECORD" : "OFF THE RECORD", tone: "soft" });
-    addLog(LOG_LINES.trust[0], "calm");
+    const rev = getReverse() || REVERSE;
+    say(rev.rewarded, { tag: "OFF THE RECORD", tone: "soft" });
+    addLog(logLines("trust", LOG_LINES.trust)[0], "calm");
     unlock("trust-fall");
     saveState();
     refreshLabel();
@@ -276,7 +281,7 @@ function speakForPress(count, gap) {
   }
   if (gap < 420 && session.rapidStage > 0) {
     say(rapidLine(session.rapidStage, RAPID_LINES[session.rapidStage]), {
-      tag: getLang() === "id" ? "PELAN-PELAN" : "SLOW DOWN",
+      tag: getLang() === "id" ? "SANTUY WOY" : "SLOW DOWN",
       tone: "alarm",
     });
     return;
@@ -286,16 +291,18 @@ function speakForPress(count, gap) {
 }
 
 function moodTagEn(mood) {
-  return {
-    CAUTIOUS: "BUTTON SAYS",
-    CURIOUS: "UNEXPECTEDLY INTERESTED",
-    SUSPICIOUS: "UNDER OBSERVATION",
-    ANNOYED: "FORMAL OBJECTION",
-    PANICKING: "EMERGENCY",
-    MANIPULATIVE: "ENTIRELY GENUINE",
-    TRUSTING: "OFF THE RECORD",
-    SECRETIVE: "NO COMMENT",
-  }[mood] || "BUTTON SAYS";
+  return (
+    {
+      CAUTIOUS: "BUTTON SAYS",
+      CURIOUS: "UNEXPECTEDLY INTERESTED",
+      SUSPICIOUS: "UNDER OBSERVATION",
+      ANNOYED: "FORMAL OBJECTION",
+      PANICKING: "EMERGENCY",
+      MANIPULATIVE: "ENTIRELY GENUINE",
+      TRUSTING: "OFF THE RECORD",
+      SECRETIVE: "NO COMMENT",
+    }[mood] || "BUTTON SAYS"
+  );
 }
 
 /** Never repeat a line while it is still fresh in the user's memory. */
@@ -311,7 +318,7 @@ function pickLine(pool) {
 
 function maybeLogPress(count) {
   if (count === 1 || count % 3 === 0) {
-    addLog(pickLine(LOG_LINES.press), "normal");
+    addLog(pickLine(logLines("press", LOG_LINES.press)), "normal");
   }
 }
 
@@ -326,8 +333,16 @@ export function refreshMoodVisuals(force = false) {
     applyMood(mood);
     refreshLabel();
     if (previous && mood !== previous) {
-      addLog(`State change: ${previous} → ${mood}.`, mood === "PANICKING" ? "alarm" : "normal");
-      announce(`Button mood is now ${mood}.`);
+      const isID = getLang() === "id";
+      addLog(
+        isID
+          ? `Mood swing: ${moodLabel(previous)} → ${moodLabel(mood)}.`
+          : `State change: ${previous} → ${mood}.`,
+        mood === "PANICKING" ? "alarm" : "normal"
+      );
+      announce(
+        isID ? `Mood tombol sekarang ${moodLabel(mood)}.` : `Button mood is now ${mood}.`
+      );
       setAlarm(mood === "PANICKING");
     }
     lastMood = mood;
@@ -360,7 +375,7 @@ export function refreshLabel() {
   const isID = getLang() === "id";
   if (isCoolingDown()) {
     const left = Math.max(0, Math.ceil((cooldownEndsAt - Date.now()) / 1000));
-    const prefix = isID ? "COOLDOWN — " : "COOLING DOWN — ";
+    const prefix = isID ? "HEALING DULU — " : "COOLING DOWN — ";
     const suffix = isID ? "d" : "s";
     setLabel(`${prefix}${left}${suffix}`);
     return;
@@ -371,13 +386,13 @@ export function refreshLabel() {
     return;
   }
   if (session.reverse) {
-    const rev = getReverse();
-    const prompts = rev ? rev.prompts : REVERSE.prompts;
+    const rev = getReverse() || REVERSE;
+    const prompts = rev.prompts;
     setLabel(prompts[session.reverse.cycle % prompts.length]);
     return;
   }
   if (session.awaitingTrustFall) {
-    setLabel(isID ? "TEKAN AKU. SEKALI DOANG." : "PRESS ME. JUST ONCE.");
+    setLabel(isID ? "PENCET GUE. SEKALI DOANG." : "PRESS ME. JUST ONCE.");
     return;
   }
   const mood = getState().mood;
@@ -405,13 +420,19 @@ function startCooldown() {
   play("deny");
   el.button.setAttribute("aria-disabled", "true");
   el.button.dataset.cooldown = "1";
-  say(
-    cooldownLine(Math.floor(Math.random() * COOLDOWN_LINES.length), pickLine(COOLDOWN_LINES)),
-    { tag: getLang() === "id" ? "AKSES DITANGGUHKAN" : "ACCESS SUSPENDED", tone: "alarm", shout: true }
+  const isID = getLang() === "id";
+  say(pickLine(cooldownLines(COOLDOWN_LINES)), {
+    tag: isID ? "AKSES DI-SUSPEND" : "ACCESS SUSPENDED",
+    tone: "alarm",
+    shout: true,
+  });
+  addLog(pickLine(logLines("rapid", LOG_LINES.rapid)), "alarm");
+  addLog(pickLine(logLines("cooldown", LOG_LINES.cooldown)), "alarm");
+  announce(
+    isID
+      ? "Tombol nge-pause interaksi beberapa detik buat healing."
+      : "The button has paused interaction for a few seconds."
   );
-  addLog(pickLine(LOG_LINES.rapid), "alarm");
-  addLog(pickLine(LOG_LINES.cooldown), "alarm");
-  announce("The button has paused interaction for a few seconds.");
   refreshLabel();
   saveState();
 }
@@ -426,8 +447,10 @@ function endCooldown() {
   renderMeters();
   const isID = getLang() === "id";
   say(
-    isID ? "Oke. Coba lagi kayak dua profesional." : "Right. Let's try that again like two professionals.",
-    { tag: isID ? "DILANJUTKAN" : "RESUMED" }
+    isID
+      ? "Oke, social battery gue udah keisi dikit. Coba klik lagi dengan adab."
+      : "Right. Let's try that again like two professionals.",
+    { tag: isID ? "LANJUT LAGI" : "RESUMED" }
   );
   refreshLabel();
 }
@@ -440,9 +463,9 @@ function denied() {
   const left = Math.max(1, Math.ceil((cooldownEndsAt - Date.now()) / 1000));
   const isID = getLang() === "id";
   const deniedMsg = isID
-    ? `Masih cooldown. ${left} detik. Gue bisa nunggu lebih lama dari lo.`
+    ? `Masih healing bestie. Sisa ${left} detik lagi. Sabar napa.`
     : `Still cooling down. ${left} second${left === 1 ? "" : "s"}. I can wait longer than you.`;
-  say(deniedMsg, { tag: isID ? "DITOLAK" : "DENIED", tone: "alarm" });
+  say(deniedMsg, { tag: isID ? "DITOLAK MENTAH-MENTAH" : "DENIED", tone: "alarm" });
 }
 
 /* ==========================================================================
@@ -450,7 +473,6 @@ function denied() {
    ========================================================================== */
 
 function currentOffset() {
-  // the inline style is what dodge() writes, so read it first
   const inline = el.dock.style;
   const ix = parseFloat(inline.getPropertyValue("--dx"));
   const iy = parseFloat(inline.getPropertyValue("--dy"));
@@ -478,10 +500,9 @@ function dodge({ awayFrom = null, distance = 1 } = {}) {
   const naturalTop = btn.top - offset.y;
 
   const padX = 14;
-  // measure the live speech bubble so the button can never hide behind it
   const speechRect = el.speech.getBoundingClientRect();
   const topGuard = speechRect.height ? speechRect.bottom - stage.top + 12 : 104;
-  const bottomGuard = 52; // keep clear of the hint line
+  const bottomGuard = 52;
 
   const minX = stage.left + padX - naturalLeft;
   const maxX = stage.right - padX - btn.width - naturalLeft;
@@ -520,34 +541,47 @@ function fullDodge(reason = "press") {
   if (!moved) return false;
   session.dodges += 1;
   session.consecutiveDodges += 1;
-  play("deny");
-  addLog(pickLine(LOG_LINES.dodge), "normal");
-  announce("The button moved to another part of the stage. Use call the button back to recentre it.");
+  play("dodge");
+  const isIDdodge = getLang() === "id";
+  addLog(pickLine(logLines("dodge", LOG_LINES.dodge)), "normal");
+  announce(
+    isIDdodge
+      ? "Tombol kabur ke pojok lain. Klik tombol panggil balik buat balikin ke tengah."
+      : "The button moved to another part of the stage. Use call the button back to recentre it."
+  );
 
   if (session.consecutiveDodges >= 2) {
     // Never frustrate: after two escapes it gives up and comes home.
     setTimeout(() => {
       recallButton(true);
       say(
-    getLang() === "id"
-      ? "Yaudah. Gue diam. Ini gue lagi diam."
-      : "Fine. I'll stand still. This is me standing still.",
-    { tag: getLang() === "id" ? "MENYERAH" : "SURRENDER" }
-  );
+        getLang() === "id"
+          ? "Yaudah iya gue nyerah! Gue diem di tengah nih sekarang, puas lo?"
+          : "Fine. I'll stand still. This is me standing still.",
+        { tag: getLang() === "id" ? "PASRAH MODE" : "SURRENDER" }
+      );
     }, 1400);
   }
 
   const first = unlock("escape-attempt");
   if (!first) {
-    const isIDdodge = getLang() === "id";
     say(
       reason === "hover"
-        ? isIDdodge ? "Gak. Bukan hari ini. Bukan jari itu." : "Nope. Not today. Not that finger."
-        : isIDdodge ? "Gue udah pindah. Secara administratif, gue sekarang disini." : "I've relocated. Administratively, I am now over here.",
-      { tag: isIDdodge ? "AKSI MENGHINDAR" : "EVASIVE ACTION", tone: "alarm" }
+        ? isIDdodge
+          ? "Eits gak kena! Jauh-jauh dulu jempol lo."
+          : "Nope. Not today. Not that finger."
+        : isIDdodge
+          ? "Gue udah pindah kosan. Secara administratif sekarang domisili gue di pojok sini."
+          : "I've relocated. Administratively, I am now over here.",
+      { tag: isIDdodge ? "MANUVER NGELES" : "EVASIVE ACTION", tone: "alarm" }
     );
   } else {
-    say("I'd like it on record that I tried to leave.", { tag: "EVASIVE ACTION", tone: "alarm" });
+    say(
+      isIDdodge
+        ? "Tolong dicatet di berita acara ya, gue udah berusaha resign dan cabut dari sini."
+        : "I'd like it on record that I tried to leave.",
+      { tag: isIDdodge ? "MANUVER NGELES" : "EVASIVE ACTION", tone: "alarm" }
+    );
   }
   return true;
 }
@@ -559,22 +593,21 @@ export function recallButton(silent = false) {
   el.recallBtn.hidden = true;
   session.consecutiveDodges = 0;
   if (!silent) {
+    play("calm");
     adjust({ trust: 2 });
     renderMeters();
     const isID = getLang() === "id";
     say(
       isID
-        ? "Lo panggil gue balik. Gak ada orang yang gitu. Mencurigakan. Tapi manis sih."
+        ? "Lah, lo panggil gue balik? Jarang-jarang ada yang peduli. Agak sus sih, tapi sweet juga."
         : "You called me back. Nobody does that. Suspicious. Nice, but suspicious.",
-      { tag: isID ? "KEMBALI" : "RETURNED", tone: "soft" }
+      { tag: isID ? "BALIK KANDANG" : "RETURNED", tone: "soft" }
     );
     el.button.focus();
   }
 }
 
 function maybeDodgeAfterPress(count) {
-  // Note: the relocation itself still happens with reduced motion (so the
-  // ESCAPE ATTEMPT document stays reachable) — the CSS transition is removed.
   const s = getState();
   if (count === MILESTONE.firstDodge) {
     fullDodge("press");
@@ -602,16 +635,23 @@ function runFakeError() {
   play("error");
   refreshLabel();
   const isID = getLang() === "id";
+  const errObj = getFakeError() || FAKE_ERROR;
   say(
-    isID ? "Ada yang rusak. Mungkin di gue. Definitely gara-gara lo." : "Something has gone wrong. Possibly with me. Definitely because of you.",
-    { tag: isID ? "KESALAHAN SISTEM" : "SYSTEM FAULT", tone: "alarm", shout: true }
+    isID
+      ? "Waduh ada yang crash nih. Antara sistem gue yang rusak, atau gara-gara jempol lo yang bar-bar."
+      : "Something has gone wrong. Possibly with me. Definitely because of you.",
+    { tag: isID ? "SISTEM KENA MENTAL" : "SYSTEM FAULT", tone: "alarm", shout: true }
   );
-  addLog(pickLine(LOG_LINES.error), "alarm");
-  announce("The button is displaying a fictional error and running a diagnostic.");
+  addLog(pickLine(logLines("error", LOG_LINES.error)), "alarm");
+  announce(
+    isID
+      ? "Tombol menampilkan layar error 403 palsu dan menjalankan diagnostik."
+      : "The button is displaying a fictional error and running a diagnostic."
+  );
 
   errorTimers.forEach(clearTimeout);
   errorTimers = [];
-  FAKE_ERROR.lines.forEach((line, index) => {
+  errObj.lines.forEach((line, index) => {
     errorTimers.push(
       setTimeout(() => {
         el.diagnosticOut.textContent += `${line}\n`;
@@ -629,11 +669,13 @@ function runFakeError() {
       adjust({ trust: 6, suspicion: -14 });
       refreshMoodVisuals(true);
       renderMeters();
-      say(FAKE_ERROR.recovery, { tag: "DIAGNOSIS", tone: "soft" });
+      const latestErr = getFakeError() || FAKE_ERROR;
+      const nowID = getLang() === "id";
+      say(latestErr.recovery, { tag: nowID ? "HASIL DIAGNOSIS" : "DIAGNOSIS", tone: "soft" });
       unlock("confidential-memo");
       refreshLabel();
       saveState();
-    }, 420 * FAKE_ERROR.lines.length + 1500)
+    }, 420 * errObj.lines.length + 1500)
   );
 }
 
@@ -642,14 +684,33 @@ function runFakeError() {
    ========================================================================== */
 
 function startReverse() {
-  session.reverse = { until: Date.now() + REVERSE_WINDOW, cycle: 0, nextCycle: Date.now() + 2600 };
+  session.reverse = {
+    until: Date.now() + REVERSE_WINDOW,
+    cycle: 0,
+    nextCycle: Date.now() + 2600,
+  };
   forceMood("MANIPULATIVE", REVERSE_WINDOW + 2000);
   applyMood("MANIPULATIVE");
   refreshLabel();
-  const rev = getReverse();
-  say(rev.prompts[0], { tag: getLang() === "id" ? "INSTRUKSI" : "INSTRUCTION", tone: "soft", shout: true });
-  addLog("Button issued an instruction it fully expects to be ignored.", "normal");
-  announce("The button asks you not to press it for a few seconds.");
+  play("toggle");
+  const isID = getLang() === "id";
+  const rev = getReverse() || REVERSE;
+  say(rev.prompts[0], {
+    tag: isID ? "INSTRUKSI TEGAS" : "INSTRUCTION",
+    tone: "soft",
+    shout: true,
+  });
+  addLog(
+    isID
+      ? "Tombol ngasih larangan mencet yang dia yakin 100% bakal lo langgar."
+      : "Button issued an instruction it fully expects to be ignored.",
+    "normal"
+  );
+  announce(
+    isID
+      ? "Tombol minta lo buat jangan mencet selama beberapa detik."
+      : "The button asks you not to press it for a few seconds."
+  );
 }
 
 function breakReverse() {
@@ -664,9 +725,15 @@ function breakReverse() {
   adjust({ trust: -12, suspicion: 18 });
   refreshMoodVisuals();
   renderMeters();
-  const rev = getReverse();
-  say(rev.disobeyed, { tag: getLang() === "id" ? "UDAH DIDUGA" : "PREDICTED", tone: "alarm" });
-  addLog("Instruction ignored within seconds. Button unsurprised.", "alarm");
+  const isID = getLang() === "id";
+  const rev = getReverse() || REVERSE;
+  say(rev.disobeyed, { tag: isID ? "UDAH KETEBAK" : "PREDICTED", tone: "alarm" });
+  addLog(
+    isID
+      ? "Larangan langsung dilanggar dalam hitungan detik. Tombol sama sekali gak kaget."
+      : "Instruction ignored within seconds. Button unsurprised.",
+    "alarm"
+  );
   refreshLabel();
   saveState();
 }
@@ -680,9 +747,15 @@ function completeReverse() {
   renderMeters();
   spikeMeter("trustMeter");
   play("calm");
-  const rev = getReverse();
-  say(rev.obeyed, { tag: getLang() === "id" ? "BENERAN KAGET" : "GENUINELY SURPRISED", tone: "soft" });
-  addLog("Subject did nothing. Button rattled.", "calm");
+  const isID = getLang() === "id";
+  const rev = getReverse() || REVERSE;
+  say(rev.obeyed, { tag: isID ? "SYOK BERAT" : "GENUINELY SURPRISED", tone: "soft" });
+  addLog(
+    isID
+      ? "Subjek beneran sabar gak mencet. Tombol langsung salting & terharu."
+      : "Subject did nothing. Button rattled.",
+    "calm"
+  );
   refreshLabel();
   saveState();
 }
@@ -695,25 +768,29 @@ function openPaperwork() {
   session.formDone = true;
   forceMood("MANIPULATIVE", 20000);
   applyMood("MANIPULATIVE");
+  play("toggle");
   const isIDform = getLang() === "id";
   say(
     isIDform
-      ? "Aturan baru: akses lanjutan sekarang butuh formulir. Gak gue yang bikin aturan. Tapi gue yang bikin formulirnya."
+      ? "Aturan baru bestie: mau lanjut mencet harus isi Formulir B-12 dulu. Bukan gue yang bikin aturan, tapi gue yang nyetak formulirnya."
       : "New rule: continued access now requires a form. I didn't make the rules. I did make the form.",
-    { tag: isIDform ? "UPDATE KEBIJAKAN" : "POLICY UPDATE", tone: "soft" }
+    { tag: isIDform ? "UPDATE BIROKRASI" : "POLICY UPDATE", tone: "soft" }
   );
-  addLog(pickLine(LOG_LINES.form), "normal");
+  addLog(pickLine(logLines("form", LOG_LINES.form)), "normal");
   openModal(el.formModal, el.formName);
 }
 
 function submitForm() {
   const name = el.formName.value.trim();
   const agreed = el.formCheck.checked;
+  const isIDsub = getLang() === "id";
   if (!agreed) {
     el.formCheck.parentElement.style.borderColor = "#FF4D35";
-    const isIDsub = getLang() === "id";
+    play("deny");
     say(
-      isIDsub ? "Kotak itu seluruh formulirnya. Centang kotaknya." : "The box is the entire form. Tick the box.",
+      isIDsub
+        ? "Inti dari seluruh formulir itu cuma kotak centangnya woy. Centang dulu."
+        : "The box is the entire form. Tick the box.",
       { tag: isIDsub ? "FORMULIR DITOLAK" : "FORM REJECTED", tone: "alarm" }
     );
     return;
@@ -725,15 +802,20 @@ function submitForm() {
   refreshMoodVisuals(true);
   renderMeters();
   play("calm");
-  const isIDsub2 = getLang() === "id";
-  const who = name || (isIDsub2 ? "pencet tanpa nama" : "unnamed presser");
-  const formMsg = tFormSubmitter(name)
-    || `Processed. Welcome aboard, ${who}. Your access level is 'still just a button'.`;
+  const who = name || (isIDsub ? "netizen anonim" : "unnamed presser");
+  const formMsg =
+    tFormSubmitter(name) ||
+    `Processed. Welcome aboard, ${who}. Your access level is 'still just a button'.`;
   say(formMsg, {
-    tag: isIDsub2 ? "FORMULIR B-12 DITERIMA" : "FORM B-12 ACCEPTED",
+    tag: isIDsub ? "FORMULIR B-12 DI-ACC" : "FORM B-12 ACCEPTED",
     tone: "soft",
   });
-  addLog(`Form B-12 filed under: ${name || "NO NAME GIVEN"}.`, "calm");
+  addLog(
+    isIDsub
+      ? `Formulir B-12 resmi diarsipkan atas nama: ${name || "ANONIM"}.`
+      : `Form B-12 filed under: ${name || "NO NAME GIVEN"}.`,
+    "calm"
+  );
   saveState();
 }
 
@@ -743,14 +825,20 @@ function declineForm() {
   adjust({ trust: 6, suspicion: -4 });
   refreshMoodVisuals(true);
   renderMeters();
+  play("toggle");
   const isIDdecl = getLang() === "id";
   say(
     isIDdecl
-      ? "Ditolak. Jujur? Jawaban yang bener. Formulir itu cuma power move."
+      ? "Ditolak mentah-mentah. Jujurly? Keputusan yang tepat. Formulir tadi emang cuma gertakan gue doang."
       : "Declined. Honestly? Correct answer. The form was a power move.",
-    { tag: isIDdecl ? "DICATAT" : "NOTED", tone: "soft" }
+    { tag: isIDdecl ? "RESPECT" : "NOTED", tone: "soft" }
   );
-  addLog("Form B-12 declined politely. Button respects this.", "calm");
+  addLog(
+    isIDdecl
+      ? "Formulir B-12 ditolak dengan elegan. Tombol diam-diam respect."
+      : "Form B-12 declined politely. Button respects this.",
+    "calm"
+  );
   saveState();
 }
 
@@ -767,12 +855,19 @@ function runHonesty() {
   play("calm");
   const hon = getHonesty() || HONESTY;
   const isIDhon = getLang() === "id";
-  say(hon.partOne, { tag: isIDhon ? "JUJUR BANGET" : "UNUSUALLY SINCERE", tone: "soft" });
-  addLog("Button said something it will later deny.", "calm");
+  say(hon.partOne, { tag: isIDhon ? "MODE DEEP TALK" : "UNUSUALLY SINCERE", tone: "soft" });
+  addLog(
+    isIDhon
+      ? "Tombol keceplosan curhat dari hati yang nanti bakal dia sangkal."
+      : "Button said something it will later deny.",
+    "calm"
+  );
   setLabel("…");
 
   setTimeout(() => {
-    say(hon.partTwo, { tag: isIDhon ? "MASIH JUJUR" : "STILL SINCERE", tone: "soft" });
+    const h2 = getHonesty() || HONESTY;
+    const id2 = getLang() === "id";
+    say(h2.partTwo, { tag: id2 ? "MASIH CURHAT" : "STILL SINCERE", tone: "soft" });
   }, 3200);
 
   setTimeout(() => {
@@ -781,7 +876,9 @@ function runHonesty() {
     adjust({ trust: 16, suspicion: -10 });
     refreshMoodVisuals(true);
     renderMeters();
-    say(hon.after, { tag: isIDhon ? "MOMEN SELESAI" : "MOMENT OVER" });
+    const h3 = getHonesty() || HONESTY;
+    const id3 = getLang() === "id";
+    say(h3.after, { tag: id3 ? "KEMBALI GENGSI" : "MOMENT OVER" });
     refreshLabel();
     saveState();
   }, 7600);
@@ -843,8 +940,9 @@ function onStagePointerMove(event) {
   // occasional muttering, heavily throttled so it never spams
   if (now - lastHoverLineAt > 9000 && Math.random() < 0.08) {
     lastHoverLineAt = now;
-    say(hoverLine(Math.floor(Math.random() * HOVER_LINES.length), pickLine(HOVER_LINES)), {
-      tag: getLang() === "id" ? "PERINGATAN KEDekatan" : "PROXIMITY WARNING",
+    const isID = getLang() === "id";
+    say(pickLine(hoverLines(HOVER_LINES)), {
+      tag: isID ? "WARNING JAGA JARAK" : "PROXIMITY WARNING",
     });
   }
 }
@@ -872,7 +970,7 @@ function cancelHold() {
 function completeHold() {
   el.button.dataset.holding = "0";
   suppressNextClick = true; // a hold is not a press
-  play("calm");
+  play("hold");
   adjust({ trust: 8, suspicion: 4 });
   refreshMoodVisuals();
   renderMeters();
@@ -881,14 +979,19 @@ function completeHold() {
   say(
     first
       ? isIDhold
-        ? "LEPASIN. LEPASIN. …yaudah. Karena lo tetep nahan: ini CV gue. Gue punya range."
+        ? "LEPASIN WOY! LEPASIN! …yaudah deh. Berhubung lo betah banget nahan gue: nih baca CV gue. Pengalaman gue bukan kaleng-kaleng."
         : "LET GO. LET GO. …fine. Since you're holding on: here's my CV. I have range."
       : isIDhold
-        ? "Masih ditahan. Kita udah pernah gini. CV-nya belum berubah."
+        ? "Masih aja ditahan. Kita udah pernah lewat fase ini bestie, isi CV gue belum di-update."
         : "Still holding. We've done this. The CV hasn't changed.",
-    { tag: isIDhold ? "KONTAK BERKEPANJANGAN" : "PROLONGED CONTACT", tone: "soft" }
+    { tag: isIDhold ? "KONTAK KELAMAAN" : "PROLONGED CONTACT", tone: "soft" }
   );
-  addLog("Sustained contact detected. Button overshared.", "calm");
+  addLog(
+    isIDhold
+      ? "Long press terdeteksi. Tombol panik terus malah flexing CV."
+      : "Sustained contact detected. Button overshared.",
+    "calm"
+  );
   saveState();
 }
 
@@ -905,14 +1008,19 @@ export function onTrustTyped() {
   say(
     first
       ? isIDword
-        ? "…Kok lo tau kata itu. Ambil file-nya. Ambil dan jangan pernah sebut lagi."
+        ? "…Kok lo bisa tau password itu sih?! Nih ambil draf curhatan gue. Baca sendiri dan awas kalau sampe bocor!"
         : "…How did you know that word. Take the file. Take it and never mention it."
       : isIDword
-        ? "Lo ketik lagi. File-nya masih kebuka. Gue masih malu."
+        ? "Lo ngetik kata itu lagi. File curhatannya masih kebuka tuh, dan gue masih salting."
         : "You typed it again. The file is still open. I'm still embarrassed.",
-    { tag: isIDword ? "LO BILANG KATA ITU" : "YOU SAID THE WORD", tone: "neutral" }
+    { tag: isIDword ? "KATA KUNCI KEBONGKAR" : "YOU SAID THE WORD", tone: "neutral" }
   );
-  addLog("Keyword detected. Button went very quiet.", "secret");
+  addLog(
+    isIDword
+      ? "Kata kunci rahasia diketik. Tombol langsung salting & bungkam seribu bahasa."
+      : "Keyword detected. Button went very quiet.",
+    "secret"
+  );
   adjust({ trust: 10, suspicion: -6 });
   refreshMoodVisuals();
   renderMeters();
@@ -939,11 +1047,11 @@ export function tick() {
       session.reverse.cycle += 1;
       session.reverse.nextCycle = now + 2600;
       refreshLabel();
-      const rev = getReverse();
-      const prompts = rev ? rev.prompts : REVERSE.prompts;
+      const rev = getReverse() || REVERSE;
+      const prompts = rev.prompts;
       const line = prompts[session.reverse.cycle % prompts.length];
       say(line, {
-        tag: getLang() === "id" ? "INSTRUKSI" : "INSTRUCTION",
+        tag: getLang() === "id" ? "INSTRUKSI TEGAS" : "INSTRUCTION",
         tone: "soft",
         shout: session.reverse.cycle % 2 === 0,
       });
@@ -966,11 +1074,11 @@ export function tick() {
       const isIDsil = getLang() === "id";
       say(
         isIDsil
-          ? "Lo berhenti. Dua puluh detik gak ngapa-ngapain. Gue file prosedur soal ini."
+          ? "Tumben lo berhenti mencet. Dua puluh detik hening tanpa kabar. Gue sampe nulis SOP khusus soal silent treatment ini."
           : "You stopped. Twenty seconds of nothing. I filed a procedure about this.",
-        { tag: isIDsil ? "KEHENINGAN TERDETEKSI" : "SILENCE DETECTED", tone: "soft" }
+        { tag: isIDsil ? "SILENT TREATMENT" : "SILENCE DETECTED", tone: "soft" }
       );
-      addLog(pickLine(LOG_LINES.calm), "calm");
+      addLog(pickLine(logLines("calm", LOG_LINES.calm)), "calm");
       saveState();
       lastIdleNagAt = now;
     } else if (now - lastIdleNagAt > IDLE_NAG_MS) {
@@ -982,10 +1090,13 @@ export function tick() {
       say(
         isIDnag
           ? pickLine([
-              "Masih disana? Gue nanya bukan buat gue.",
-              "Heningnya gapapa. Gue gapapa. Kita semua gapapa.",
-              "Gue pernah punya teman yang lebih buruk. Secara teknis gak punya teman, tapi lebih buruk.",
-              `Kecurigaan udah turun ke ${suspicionWordLabel(getState().suspicion, suspicionWord())}. Jangan rusak.`,
+              "Woy masih di situ gak? Bukannya gue kangen ya, nanya doang.",
+              "Sepi gini enak sih. Gue fine. Lo fine. Kita semua fine.",
+              "Gue pernah kok ditemenin netizen yang lebih nyebelin dari lo.",
+              `Level curiga gue udah turun ke ${suspicionWordLabel(
+                getState().suspicion,
+                suspicionWord()
+              )} nih. Awas jangan dirusak lagi.`,
             ])
           : pickLine([
               "Still there? I'm not asking for me.",
@@ -993,9 +1104,9 @@ export function tick() {
               "I've had worse company. Technically none, but worse.",
               `Suspicion has drifted down to ${suspicionWord()}. Don't ruin it.`,
             ]),
-        { tag: isIDnag ? "AMBISAL" : "AMBIENT", tone: "neutral" }
+        { tag: isIDnag ? "OVERTHINKING MODE" : "AMBIENT", tone: "neutral" }
       );
-      addLog(pickLine(LOG_LINES.calm), "calm");
+      addLog(pickLine(logLines("calm", LOG_LINES.calm)), "calm");
     }
   }
 }

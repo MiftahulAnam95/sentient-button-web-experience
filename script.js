@@ -3,12 +3,14 @@
    script.js — bootstrap. Loads saved state, wires the chrome around the
    button (header, modals, keyboard, reset) and starts the tick loop.
    Module map:
-     js/content.js  — all copy, moods, documents
-     js/state.js    — state object, trust/suspicion maths, persistence
-     js/ui.js       — DOM access, rendering, modals, toasts
-     js/secrets.js  — discovery system
-     js/button.js   — the character's behaviour
-     js/sound.js    — optional synthesised blips
+     js/content.js     — English copy, moods, documents
+     js/content.id.js  — Bahasa Indonesia (Gaul Gen-Z) copy, moods, documents
+     js/lang.js        — bilingual switcher & lookup helpers
+     js/state.js       — state object, trust/suspicion maths, persistence
+     js/ui.js          — DOM access, rendering, modals, toasts
+     js/secrets.js     — discovery system
+     js/button.js      — the character's behaviour
+     js/sound.js       — synthesised Web Audio API blips
    ========================================================================== */
 
 import { ABOUT_DOC, LOG_LINES, RETURN_LINES } from "./js/content.js";
@@ -30,7 +32,6 @@ import {
   tAboutDoc,
   returnLines,
   logLines,
-  t,
 } from "./js/lang.js";
 import {
   addLog,
@@ -50,7 +51,15 @@ import {
   trapFocus,
 } from "./js/ui.js";
 import { openFinale, renderSecrets } from "./js/secrets.js";
-import { initButton, onTrustTyped, recallButton, refreshMoodVisuals, resetCharacter, tick } from "./js/button.js";
+import {
+  initButton,
+  onTrustTyped,
+  recallButton,
+  refreshLabel,
+  refreshMoodVisuals,
+  resetCharacter,
+  tick,
+} from "./js/button.js";
 import { play, setSoundEnabled } from "./js/sound.js";
 
 /* ---------- boot ---------- */
@@ -60,27 +69,42 @@ function boot() {
   const returning = getState().visits > 0;
   registerVisit();
 
+  // sync sound preference first
+  setSoundEnabled(getState().sound);
+
   // sync language module with saved preference
-  const savedLang = getState().lang || "en";
+  const savedLang = getState().lang || "id";
   setLangModule(savedLang);
   applyLanguage();
-  if (savedLang === "id") {
-    el.langToggle.dataset.lang = "id";
-    el.langCurrent.textContent = "ID";
-    el.langToggle.setAttribute("aria-label", "Toggle bahasa, sekarang Indonesia");
-  }
+  renderLangToggle(savedLang);
+  renderSoundToggle();
+
   onLangChange((lang) => {
     setLang(lang); // persist to localStorage
-    el.langToggle.dataset.lang = lang;
-    el.langCurrent.textContent = lang === "id" ? "ID" : "EN";
-    el.langToggle.setAttribute(
-      "aria-label",
-      lang === "id" ? "Toggle bahasa, sekarang Indonesia" : "Toggle language, currently English"
-    );
+    renderLangToggle(lang);
     applyLanguage();
     refreshMoodVisuals(true);
+    refreshLabel();
     renderMeters();
     renderSecrets();
+    renderSoundToggle();
+
+    const isID = lang === "id";
+    say(
+      isID
+        ? "Oke fix, sekarang gue ngomong mode Bahasa Gaul Gen-Z. Jangan baper ya bestie."
+        : "Fine, switching to English. My trust issues are bilingual anyway.",
+      {
+        tag: isID ? "MODE GEN-Z AKTIF" : "LANGUAGE SWITCHED",
+        tone: "soft",
+      }
+    );
+    addLog(
+      isID
+        ? "Mode Bahasa Indonesia (Gaul Gen-Z) diaktifkan oleh subjek."
+        : "Language switched to English by subject.",
+      "calm"
+    );
   });
 
   subscribe(renderMeters);
@@ -93,11 +117,25 @@ function boot() {
   wireKeyboard();
   greet(returning);
 
-  setSoundEnabled(getState().sound);
-  renderSoundToggle();
-
   window.setInterval(tick, 250);
   window.addEventListener("beforeunload", saveState);
+}
+
+function renderLangToggle(lang) {
+  if (!el.langToggle || !el.langCurrent) return;
+  const isID = lang === "id";
+  el.langToggle.dataset.lang = lang;
+  el.langCurrent.textContent = isID ? "ID · GEN-Z" : "EN";
+  el.langToggle.setAttribute(
+    "aria-label",
+    isID
+      ? "Ganti bahasa, sekarang Bahasa Indonesia (Gaul Gen-Z)"
+      : "Toggle language, currently English"
+  );
+  el.langToggle.setAttribute(
+    "title",
+    isID ? "Klik buat ganti ke Bahasa Inggris (EN)" : "Click to switch to Bahasa Indonesia (Gen-Z)"
+  );
 }
 
 function stampDate() {
@@ -117,11 +155,18 @@ function greet(returning) {
 
   if (!returning) {
     say(
-      isID ? "Gue liat lo nemuin gue. Sial buat kita berdua." : "I see you found me. Unfortunate, for both of us.",
+      isID
+        ? "Waduh, ketauan deh tempat nongkrong gue. Sial banget buat kita berdua, bestie."
+        : "I see you found me. Unfortunate, for both of us.",
       { tag: isID ? "TOMBOL BILANG" : "BUTTON SAYS" }
     );
     if (!session.storageOK) {
-      addLog("Storage unavailable. This session will not be remembered. Button relieved.", "normal");
+      addLog(
+        isID
+          ? "LocalStorage gak tersedia. Sesi ini gak bakal diinget. Tombol lega banget."
+          : "Storage unavailable. This session will not be remembered. Button relieved.",
+        "normal"
+      );
     }
     return;
   }
@@ -134,7 +179,7 @@ function greet(returning) {
 
   say(line, { tag: isID ? "SEBELUMNYA DI TBHTI®" : "PREVIOUSLY ON TBHTI®", tone: "soft" });
   const prevLog = isID
-    ? `Subjek kembali. ${s.interactions} interaksi sebelumnya tercatat, ${s.secrets.length} dokumen sudah dipulihkan.`
+    ? `Subjek balik lagi. ${s.interactions} histori klik tercatat, ${s.secrets.length} dokumen aib udah kebongkar.`
     : `Returning subject. ${s.interactions} previous interaction${
         s.interactions === 1 ? "" : "s"
       } on file, ${s.secrets.length} document${s.secrets.length === 1 ? "" : "s"} already recovered.`;
@@ -145,7 +190,8 @@ function greet(returning) {
 /* ---------- header / footer / modal wiring ---------- */
 
 function wireChrome() {
-  el.aboutBtn.addEventListener("click", () => {
+  el.aboutBtn?.addEventListener("click", () => {
+    play("toggle");
     const about = tAboutDoc();
     openDoc({
       kicker: about?.kicker ?? ABOUT_DOC.kicker,
@@ -154,22 +200,50 @@ function wireChrome() {
     });
   });
 
-  el.langToggle.addEventListener("click", () => {
+  el.langToggle?.addEventListener("click", () => {
     const next = getLang() === "en" ? "id" : "en";
     setLangModule(next);
+    play("toggle");
   });
 
-  el.soundToggle.addEventListener("click", () => {
+  el.soundToggle?.addEventListener("click", () => {
     const next = !getState().sound;
     setSound(next);
     setSoundEnabled(next);
     renderSoundToggle();
-    if (next) play("press");
-    announce(next ? "Sound on." : "Sound off.");
+    const isID = getLang() === "id";
+    if (next) {
+      play("press");
+      say(
+        isID
+          ? "Suara dinyalain nih. Siap-siap dengerin gue ngomel pake efek synth."
+          : "Audio enabled. Now you can hear me judge you in stereo.",
+        { tag: isID ? "AUDIO ON" : "SOUND ON", tone: "soft" }
+      );
+    } else {
+      say(
+        isID
+          ? "Suara di-mute. Diemin aja terus, gue udah biasa dibungkam kok."
+          : "Muted. Fine, silence me. See if that fixes my trust issues.",
+        { tag: isID ? "AUDIO MUTE" : "SOUND OFF", tone: "neutral" }
+      );
+    }
+    announce(
+      next
+        ? isID
+          ? "Suara aktif."
+          : "Sound on."
+        : isID
+          ? "Suara dimatikan."
+          : "Sound off."
+    );
   });
 
-  el.finaleBtn.addEventListener("click", openFinale);
-  el.docModalClose.addEventListener("click", () => closeModal(el.docModal));
+  el.finaleBtn?.addEventListener("click", openFinale);
+  el.docModalClose?.addEventListener("click", () => {
+    play("toggle");
+    closeModal(el.docModal);
+  });
 
   // every scrim closes its own modal
   document.querySelectorAll(".modal__scrim").forEach((scrim) => {
@@ -177,33 +251,55 @@ function wireChrome() {
   });
 
   // reset flow — always confirmed first
-  el.resetBtn.addEventListener("click", openResetConfirm);
-  el.confirmNo.addEventListener("click", () => {
-    closeModal(el.confirmModal);
-    say("Good. I'd have to learn your clicking rhythm all over again.", { tag: "RELIEVED", tone: "soft" });
+  el.resetBtn?.addEventListener("click", () => {
+    play("toggle");
+    openResetConfirm();
   });
-  el.confirmNo2.addEventListener("click", () => closeModal(el.confirmModal));
-  el.confirmYes.addEventListener("click", performReset);
+  el.confirmNo?.addEventListener("click", () => {
+    play("calm");
+    closeModal(el.confirmModal);
+    const isID = getLang() === "id";
+    say(
+      isID
+        ? "Nah gitu dong bestie. Males banget gue kalau harus ngafalin ritme jempol lo dari nol lagi."
+        : "Good. I'd have to learn your clicking rhythm all over again.",
+      { tag: isID ? "LEGA PARAH" : "RELIEVED", tone: "soft" }
+    );
+  });
+  el.confirmNo2?.addEventListener("click", () => closeModal(el.confirmModal));
+  el.confirmYes?.addEventListener("click", performReset);
 }
 
 function renderSoundToggle() {
+  if (!el.soundToggle || !el.soundState) return;
   const on = getState().sound;
   el.soundToggle.setAttribute("aria-pressed", on ? "true" : "false");
   el.soundState.textContent = on ? "ON" : "OFF";
 }
 
 function openResetConfirm() {
-  // update modal text with current language
   const isID = getLang() === "id";
-  el.confirmKicker.textContent = isID ? "PENGHENTIAN HUBUNGAN" : "TERMINATION OF RELATIONSHIP";
-  el.confirmTitle.textContent = isID ? "Hapus semua?" : "Erase everything?";
-  el.confirmText.textContent = isID
-    ? "Ini ngehapus semua interaksi, semua rahasia dan seluruh memori tombol tentang kamu. Dia bakal pura-pura gapernah terjadi. Dia jago banget soal itu."
-    : "This deletes every interaction, every secret and the button's entire memory of you. It will act like nothing happened. It is very good at that.";
-  el.confirmNo.textContent = isID ? "GAK, KITA MASIH FINE" : "NO, WE'RE FINE";
-  el.confirmYes.textContent = isID ? "IYA, HAPUS SEMUA" : "YES, WIPE IT";
+  if (el.confirmKicker) {
+    el.confirmKicker.textContent = isID
+      ? "CUT OFF HUBUNGAN SEKARANG"
+      : "TERMINATION OF RELATIONSHIP";
+  }
+  if (el.confirmTitle) {
+    el.confirmTitle.textContent = isID ? "Yakin mau cut off & hapus semua?" : "Erase everything?";
+  }
+  if (el.confirmText) {
+    el.confirmText.textContent = isID
+      ? "Ini bakal ngehapus semua histori interaksi, 7 rahasia yang udah kebongkar, dan semua memori tombol tentang lo. Doi bakal belagak amnesia kayak kita gak pernah kenal. Doi jago banget soal playing strangers."
+      : "This deletes every interaction, every secret and the button's entire memory of you. It will act like nothing happened. It is very good at that.";
+  }
+  if (el.confirmNo) {
+    el.confirmNo.textContent = isID ? "GAJADI DEH, MASIH AMAN" : "NO, WE'RE FINE";
+  }
+  if (el.confirmYes) {
+    el.confirmYes.textContent = isID ? "GAS, HAPUS SEMUA KENANGAN" : "YES, WIPE IT";
+  }
   openModal(el.confirmModal, el.confirmNo);
-  announce(isID ? "Konfirmasi reset dibuka." : "Reset confirmation opened.");
+  announce(isID ? "Konfirmasi reset hubungan dibuka." : "Reset confirmation opened.");
 }
 
 function performReset() {
@@ -217,16 +313,22 @@ function performReset() {
   addLog(resetLog[0], "alarm");
   const isID = getLang() === "id";
   say(
-    isID ? "…Lo siapa? Gak pernah liat lo sebelumnya." : "…Who are you? Never seen you before in my life.",
-    { tag: isID ? "MULAI BARU" : "FRESH START" }
+    isID
+      ? "…Lah, lo siapa dah? Perasaan kita belum pernah kenalan sebelumnya."
+      : "…Who are you? Never seen you before in my life.",
+    { tag: isID ? "AMNESIA MODE" : "FRESH START" }
   );
-  announce(isID ? "Progress dihapus. Tombol udah lupa semua." : "Progress cleared. The button has forgotten everything.");
+  announce(
+    isID
+      ? "Progress dihapus. Si tombol udah lupa semuanya tentang lo."
+      : "Progress cleared. The button has forgotten everything."
+  );
   play("deny");
 }
 
 /* ---------- keyboard ---------- */
 
-const SECRET_WORD = "trust";
+const SECRET_WORDS = ["trust", "yakin"];
 let typedBuffer = "";
 
 function isTypingTarget(node) {
@@ -249,10 +351,10 @@ function wireKeyboard() {
 
     const key = event.key.toLowerCase();
 
-    // hidden sequence: type the five-letter word
+    // hidden sequence: type the five-letter word ("trust" or "yakin")
     if (/^[a-z]$/.test(key)) {
-      typedBuffer = (typedBuffer + key).slice(-SECRET_WORD.length);
-      if (typedBuffer === SECRET_WORD) {
+      typedBuffer = (typedBuffer + key).slice(-5);
+      if (SECRET_WORDS.includes(typedBuffer)) {
         typedBuffer = "";
         onTrustTyped();
         return;

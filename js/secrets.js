@@ -17,16 +17,23 @@ import {
   reducedMotion,
 } from "./ui.js";
 import { play } from "./sound.js";
+import { lang as getLang, tSecrets, tFinale, logLines } from "./lang.js";
 
-const byId = (id) => SECRETS.find((s) => s.id === id);
+function currentSecrets() {
+  return tSecrets() || SECRETS;
+}
+
+const byId = (id) => currentSecrets().find((s) => s.id === id);
 
 /* ---------- rendering ---------- */
 
 export function renderSecrets() {
   if (!el.secretGrid) return;
   el.secretGrid.innerHTML = "";
+  const isID = getLang() === "id";
+  const list = currentSecrets();
 
-  SECRETS.forEach((secret, index) => {
+  list.forEach((secret, index) => {
     const unlocked = hasSecret(secret.id);
     const card = document.createElement("button");
     card.type = "button";
@@ -36,24 +43,52 @@ export function renderSecrets() {
     card.setAttribute(
       "aria-label",
       unlocked
-        ? `${secret.title}. Recovered. Open document.`
-        : `Document ${index + 1} of ${SECRETS.length}. Still sealed. Open hint.`
+        ? isID
+          ? `${secret.title}. Udah kebongkar. Klik buat baca.`
+          : `${secret.title}. Recovered. Open document.`
+        : isID
+          ? `Dokumen ${index + 1} dari ${list.length}. Masih disegel. Klik buat spill clue.`
+          : `Document ${index + 1} of ${list.length}. Still sealed. Open hint.`
     );
 
+    const statusBadge = unlocked
+      ? isID
+        ? "KEBONGKAR"
+        : "RECOVERED"
+      : isID
+        ? "DISEGEL"
+        : "SEALED";
+    const cardTitle = unlocked
+      ? secret.title
+      : isID
+        ? "DOKUMEN DIRAHASIAIN"
+        : "DOCUMENT WITHHELD";
+    const stampText = unlocked
+      ? isID
+        ? "BUKA FILE"
+        : "OPEN FILE"
+      : isID
+        ? "DIGEMBOK"
+        : "LOCKED";
+    const footHint = unlocked
+      ? secret.stamp
+      : isID
+        ? "SPILL CLUE-NYA"
+        : "HINT AVAILABLE";
+
     card.innerHTML = `
-      <span class="secret__idx"><span>${secret.code}</span><span>${
-        unlocked ? "RECOVERED" : "SEALED"
-      }</span></span>
-      <h3 class="secret__title">${escapeHTML(unlocked ? secret.title : "DOCUMENT WITHHELD")}</h3>
+      <span class="secret__idx"><span>${secret.code}</span><span>${statusBadge}</span></span>
+      <h3 class="secret__title">${escapeHTML(cardTitle)}</h3>
       <p class="secret__desc">${escapeHTML(unlocked ? secret.desc : secret.clue)}</p>
       <span class="secret__foot">
-        <span class="secret__stamp">${unlocked ? "OPEN FILE" : "LOCKED"}</span>
-        <span>${unlocked ? secret.stamp : "HINT AVAILABLE"}</span>
+        <span class="secret__stamp">${stampText}</span>
+        <span>${footHint}</span>
       </span>`;
 
     card.addEventListener("click", () => {
+      play("toggle");
       if (hasSecret(secret.id)) openSecret(secret.id);
-      else openHint(secret);
+      else openHint(secret.id);
     });
 
     el.secretGrid.append(card);
@@ -65,23 +100,38 @@ export function renderSecrets() {
 
 function renderProgress() {
   const found = getState().secrets.length;
-  if (el.secretProgress) el.secretProgress.textContent = `${found} / ${SECRETS.length} RECOVERED`;
+  const isID = getLang() === "id";
+  if (el.secretProgress) {
+    el.secretProgress.textContent = `${found} / ${SECRETS.length} ${
+      isID ? "KEBONGKAR" : "RECOVERED"
+    }`;
+  }
   if (el.diagSecrets) el.diagSecrets.textContent = `${found} / ${SECRETS.length}`;
 }
 
 export function renderFinale() {
   const complete = getState().secrets.length >= SECRETS.length;
   if (!el.finaleCard) return;
+  const isID = getLang() === "id";
+  const fin = tFinale() || FINALE;
+
   el.finaleCard.dataset.unlocked = complete ? "true" : "false";
   el.finaleBtn.disabled = !complete;
   if (complete) {
-    el.finaleTitle.textContent = FINALE.title;
-    el.finaleText.textContent = FINALE.teaser;
-    el.finaleBtn.textContent = "OPEN THE CERTIFICATE";
+    el.finaleTitle.textContent = fin.title;
+    el.finaleText.textContent = fin.teaser;
+    el.finaleBtn.textContent = isID ? "BUKA SERTIFIKATNYA" : "OPEN THE CERTIFICATE";
   } else {
     const left = SECRETS.length - getState().secrets.length;
-    el.finaleTitle.textContent = "[ SEALED UNTIL ALL 7 ARE RECOVERED ]";
-    el.finaleText.textContent = `${left} document${left === 1 ? "" : "s"} still missing. The button insists there is nothing else, which is exactly what a button with seven documents would say.`;
+    el.finaleTitle.textContent = isID
+      ? "[ DISEGEL SAMPAI 7 FILE KEBONGKAR SEMUA ]"
+      : "[ SEALED UNTIL ALL 7 ARE RECOVERED ]";
+    el.finaleText.textContent = isID
+      ? `Masih kurang ${left} dokumen lagi bestie. Si tombol kekeuh bilang udah gak ada apa-apa, padahal mah jelas bohong banget.`
+      : `${left} document${
+          left === 1 ? "" : "s"
+        } still missing. The button insists there is nothing else, which is exactly what a button with seven documents would say.`;
+    el.finaleBtn.textContent = isID ? "BUKA SERTIFIKATNYA" : "OPEN THE CERTIFICATE";
   }
 }
 
@@ -93,7 +143,28 @@ export function openSecret(id) {
   openDoc({ kicker: secret.kicker, title: secret.title, html: secret.doc });
 }
 
-function openHint(secret) {
+function openHint(idOrSecret) {
+  const id = typeof idOrSecret === "string" ? idOrSecret : idOrSecret.id;
+  const secret = byId(id) || idOrSecret;
+  const isID = getLang() === "id";
+
+  if (isID) {
+    openDoc({
+      kicker: "DISEGEL · CLUE DIBOCORIN DIKIT",
+      title: "DOKUMEN MASIH DIRAHASIAIN",
+      html: `
+        <div class="doc__meta"><span>${secret.code}</span><span>STATUS: DISEGEL RAPET</span><span>AKSES: DITOLAK</span></div>
+        <div class="doc__body">
+          <p>File aib ini beneran ada kok. Si tombol aja yang denial bilang gak ada. Yakali percaya omongan tombol.</p>
+          <p class="mono">BOCORAN CLUE BUAT LO:
+${escapeHTML(secret.clue)}</p>
+          <p>Balik lagi ke sini kalau syaratnya udah lo penuhin ya bestie. Nanti segelnya bakal kebuka sendiri, dan si tombol bakal belagak gak pernah nyembunyiin apa-apa.</p>
+          <div class="doc__sign"><span>Percobaan kepo lo udah dicatet.</span><span class="doc__stamp">Disegel</span></div>
+        </div>`,
+    });
+    return;
+  }
+
   openDoc({
     kicker: "SEALED · HINT DECLASSIFIED",
     title: "DOCUMENT WITHHELD",
@@ -111,7 +182,9 @@ ${escapeHTML(secret.clue)}</p>
 
 export function openFinale() {
   if (getState().secrets.length < SECRETS.length) return;
-  openDoc({ kicker: FINALE.kicker, title: FINALE.title, html: FINALE.doc });
+  const fin = tFinale() || FINALE;
+  play("secret");
+  openDoc({ kicker: fin.kicker, title: fin.title, html: fin.doc });
 }
 
 /* ---------- unlocking ---------- */
@@ -125,14 +198,18 @@ export function unlock(id, { onReveal } = {}) {
   const secret = byId(id);
   if (!secret) return false;
 
+  const isID = getLang() === "id";
   addSecret(id);
   renderSecrets();
   flashCard(id);
   play("secret");
-  addLog(`${LOG_LINES.secret[Math.floor(Math.random() * LOG_LINES.secret.length)]} (${secret.code})`, "secret");
-  announce(`Secret recovered: ${secret.title}.`);
+  const sLogs = logLines("secret", LOG_LINES.secret);
+  addLog(`${sLogs[Math.floor(Math.random() * sLogs.length)]} (${secret.code})`, "secret");
+  announce(
+    isID ? `Dokumen rahasia kebongkar: ${secret.title}.` : `Secret recovered: ${secret.title}.`
+  );
   showToast({
-    kicker: "DOCUMENT RECOVERED",
+    kicker: isID ? "DOKUMEN KEBONGKAR!" : "DOCUMENT RECOVERED",
     title: secret.title,
     onRead: () => openSecret(id),
   });
@@ -161,13 +238,24 @@ function flashCard(id) {
 function celebrateFinale() {
   renderFinale();
   play("secret");
-  addLog("ALL SEVEN DOCUMENTS RECOVERED. Button issuing paperwork in self-defence.", "secret");
+  const isID = getLang() === "id";
+  const fin = tFinale() || FINALE;
+  addLog(
+    isID
+      ? "KETUJUH DOKUMEN AIB BERHASIL DIBONGKAR! Tombol pasrah & ngeluarin sertifikat."
+      : "ALL SEVEN DOCUMENTS RECOVERED. Button issuing paperwork in self-defence.",
+    "secret"
+  );
   showToast({
-    kicker: "FINAL ACHIEVEMENT",
-    title: FINALE.title,
+    kicker: isID ? "ACHIEVEMENT TERAKHIR!" : "FINAL ACHIEVEMENT",
+    title: fin.title,
     onRead: openFinale,
   });
-  announce("Final achievement unlocked: the certificate of unnecessary achievement.");
+  announce(
+    isID
+      ? "Achievement terakhir kebuka: Sertifikat Penghargaan Si Paling Gigih."
+      : "Final achievement unlocked: the certificate of unnecessary achievement."
+  );
   if (el.finaleCard && typeof el.finaleCard.scrollIntoView === "function") {
     el.finaleCard.scrollIntoView({
       behavior: reducedMotion.matches ? "auto" : "smooth",

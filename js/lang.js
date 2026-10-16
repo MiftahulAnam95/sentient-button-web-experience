@@ -1,12 +1,10 @@
 /* ==========================================================================
-   lang.js — bilingual layer.
+   lang.js — bilingual layer (English & Bahasa Indonesia Gaul Gen-Z).
    Exposes `lang()` / `setLang()` / `t()` / `tDoc()` / `tSecrets()`.
-   English is the source of truth; Indonesian lives in content.id.js.
-   Every `t()` call falls back to the English string when the key is missing,
-   so nothing breaks if a translation is incomplete.
+   English is the fallback source of truth; Indonesian lives in content.id.js.
    ========================================================================== */
 
-import { SECRETS, ABOUT_DOC, FINALE } from "./content.js";
+import { SECRETS } from "./content.js";
 import {
   UI_ID,
   MOOD_LABELS_ID,
@@ -36,7 +34,7 @@ import {
 
 /* ---------- language state ---------- */
 
-let current = "en"; // "en" | "id"
+let current = "id"; // "en" | "id"
 const changeListeners = new Set();
 
 export function lang() {
@@ -116,6 +114,10 @@ export function cooldownLine(index, enLine) {
   return current === "id" ? (COOLDOWN_LINES_ID[index] ?? enLine) : enLine;
 }
 
+export function cooldownLines(enLines) {
+  return current === "id" ? COOLDOWN_LINES_ID : enLines;
+}
+
 export function scriptedPress(n, enObj) {
   return current === "id" ? (SCRIPTED_ID[n] ?? enObj) : enObj;
 }
@@ -134,6 +136,10 @@ export function fakeError() {
 
 export function hoverLine(index, enLine) {
   return current === "id" ? (HOVER_LINES_ID[index] ?? enLine) : enLine;
+}
+
+export function hoverLines(enLines) {
+  return current === "id" ? HOVER_LINES_ID : enLines;
 }
 
 export function returnLines() {
@@ -176,20 +182,22 @@ export function suspicionWordLabel(value, enWord) {
 
 export function countFootLine(n, enText) {
   if (current !== "id") return enText;
+  if (n >= 50 && COUNT_FOOT_ID.MAX) return COUNT_FOOT_ID.MAX;
   const keys = Object.keys(COUNT_FOOT_ID)
     .map(Number)
+    .filter((k) => !Number.isNaN(k))
     .sort((a, b) => b - a);
   for (const key of keys) {
     if (key === 0 && n === 0) return COUNT_FOOT_ID[0];
-    if (key <= n) return COUNT_FOOT_ID[key];
+    if (n >= key) return COUNT_FOOT_ID[key];
   }
   return COUNT_FOOT_ID[0];
 }
 
 /* ------------------------------------------------------------------
    Secret document translations.
-   tSecrets() returns an ID-keyed object mirroring SECRETS, with
-   translated title / clue / desc / doc fields filled in.
+   tSecrets() returns an ID-keyed array mirroring SECRETS, with
+   translated title / clue / desc / stamp / kicker / doc fields filled in.
    ------------------------------------------------------------------ */
 
 export function tSecrets() {
@@ -202,8 +210,8 @@ export function tSecrets() {
       title: desc?.title ?? s.title,
       clue: desc?.clue ?? s.clue,
       desc: desc?.desc ?? s.desc,
-      stamp: s.stamp,
-      kicker: s.kicker,
+      stamp: desc?.stamp ?? s.stamp,
+      kicker: desc?.kicker ?? s.kicker,
       doc: DOCS_ID[s.id] ?? s.doc,
     };
   });
@@ -216,7 +224,7 @@ export function tFinale() {
 export function tAboutDoc() {
   if (current !== "id") return null;
   return {
-    kicker: "FILE KASUS · TENTANG INSIDEN INI",
+    kicker: "BERKAS KASUS · SPILL INSIDEN INI",
     title: UI_ID.aboutTitle,
     body: UI_ID.aboutBody,
   };
@@ -224,5 +232,6 @@ export function tAboutDoc() {
 
 export function tFormSubmitter(name) {
   if (current !== "id") return null;
-  return `Diproses. Selamat datang, ${name || "pencet tanpa nama"}. Level akses lo: 'tetep cuma tombol'.`;
+  const who = name || "netizen anonim";
+  return `Formulir di-acc! Welcome bestie ${who}. Status akses lo sekarang: 'tetep cuma boleh mencet tombol'.`;
 }
