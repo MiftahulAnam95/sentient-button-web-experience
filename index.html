@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en" id="rootHtml">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="THE BUTTON HAS TRUST ISSUES — an interactive experiment in distrust. One sentient button, eight moods, seven classified secrets."
+    />
+    <meta name="color-scheme" content="light" />
+    <title>THE BUTTON HAS TRUST ISSUES — TBHTI®</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23F5F1E8'/%3E%3Crect x='3' y='5' width='26' height='22' rx='6' fill='%23FF4D35' stroke='%23191919' stroke-width='2.5'/%3E%3Ccircle cx='12' cy='15' r='2.6' fill='%23191919'/%3E%3Ccircle cx='21' cy='15' r='2.6' fill='%23191919'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <!-- decorative paper grid; hidden from assistive tech -->
+    <div class="grid-overlay" aria-hidden="true"></div>
+
+    <a class="skip-link" href="#stage" data-t="skipLink">Skip to the button</a>
+
+    <!-- ============ HEADER ============ -->
+    <header class="masthead">
+      <div class="masthead__brand">
+        <span class="wordmark">TBHTI<sup>®</sup></span>
+        <span class="masthead__sub" data-t="headerSub">AN EXPERIMENT IN DISTRUST</span>
+      </div>
+
+      <div class="masthead__tools">
+        <div class="mood-chip" id="moodChip" title="Current emotional state of the button">
+          <span class="mood-chip__led" id="moodLed" aria-hidden="true"></span>
+          <span class="mood-chip__key" aria-hidden="true" data-t="moodKey">MOOD</span>
+          <span class="mood-chip__value" id="moodLabel">CAUTIOUS</span>
+          <span class="mood-chip__glyph" id="moodGlyph" aria-hidden="true">( ಠ_ಠ )</span>
+        </div>
+        <button class="pill" id="soundToggle" type="button" aria-pressed="false">
+          <span class="pill__dot" aria-hidden="true"></span>
+          <span data-t="soundPrefix">SOUND</span>: <span id="soundState">OFF</span>
+        </button>
+        <button class="pill pill--lang" id="langToggle" type="button"
+          title="Switch language" aria-label="Toggle language">
+          <span class="pill__dot pill__dot--accent" aria-hidden="true"></span>
+          <span id="langCurrent">EN</span>
+        </button>
+        <button class="pill pill--ink" id="aboutBtn" type="button" data-t="aboutBtn">ABOUT THIS INCIDENT</button>
+      </div>
+    </header>
+
+    <!-- ticker strip -->
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker__track" id="tickerTrack"></div>
+    </div>
+
+    <main>
+      <!-- ============ HERO ============ -->
+      <section class="hero" aria-labelledby="heroTitle">
+        <p class="syslabel">
+          <span class="syslabel__box" data-t="subjectPrefix">SUBJECT #001</span>
+          <span><span data-t="trustPrefix">TRUST LEVEL</span>: <b id="heroTrustWord">QUESTIONABLE</b></span>
+          <span class="syslabel__sep" aria-hidden="true">//</span>
+          <span><span data-t="fileOpened">FILE OPENED</span> <span id="heroDate">—</span></span>
+        </p>
+
+        <h1 class="hero__title" id="heroTitle">
+          <span class="hero__line" data-t="heroLine1">THE BUTTON</span>
+          <span class="hero__line hero__line--indent" data-t="heroLine2">HAS <em>TRUST</em></span>
+          <span class="hero__line" data-t="heroLine3">ISSUES.</span>
+        </h1>
+
+        <div class="hero__cols">
+          <p class="hero__lede" data-t="heroLede">
+            There&rsquo;s a button on this page. It has been advised not to trust you.
+          </p>
+          <p class="hero__note" data-t="heroNote">
+            <span class="hero__note-mark" aria-hidden="true">↓</span>
+            Proceed only if you have absolutely no respect for boundaries.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ STAGE ============ -->
+      <section class="stage-wrap" aria-labelledby="stageHeading">
+        <h2 class="section-head" id="stageHeading">
+          <span class="section-head__num">01</span>
+          <span class="section-head__text" data-t="stageHeading">THE INTERACTION STAGE</span>
+          <span class="section-head__rule" aria-hidden="true"></span>
+          <span class="section-head__meta" data-t="stageMeta">CONTAINMENT AREA · DO NOT FEED</span>
+        </h2>
+
+        <div class="stage-grid">
+          <!-- the stage -->
+          <div class="stage" id="stage">
+            <span class="reg reg--tl" aria-hidden="true"></span>
+            <span class="reg reg--tr" aria-hidden="true"></span>
+            <span class="reg reg--bl" aria-hidden="true"></span>
+            <span class="reg reg--br" aria-hidden="true"></span>
+            <span class="stage__tag" aria-hidden="true">CAM 01 — LIVE</span>
+            <span class="stage__coords" id="stageCoords" aria-hidden="true">X:000 Y:000</span>
+
+            <!-- speech bubble -->
+            <div class="speech" id="speech" data-tone="neutral">
+              <span class="speech__tag" id="speechTag">BUTTON SAYS</span>
+              <p class="speech__text" id="speechText">
+                I see you found me. Unfortunate for both of us.
+              </p>
+              <span class="speech__tail" aria-hidden="true"></span>
+            </div>
+
+            <!-- the character -->
+            <div class="button-dock" id="buttonDock">
+              <button class="tbutton" id="theButton" type="button" aria-describedby="speechText">
+                <span class="tbutton__sr">Press the button</span>
+                <svg
+                  class="tbutton__svg"
+                  viewBox="0 0 260 220"
+                  role="img"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    class="tb-shadow"
+                    d="M24 44C20 20 40 10 72 8L196 12C228 14 242 28 244 52L248 150C250 182 232 200 202 204L70 208C36 210 18 194 16 164Z"
+                  />
+                  <path
+                    class="tb-body"
+                    d="M24 44C20 20 40 10 72 8L196 12C228 14 242 28 244 52L248 150C250 182 232 200 202 204L70 208C36 210 18 194 16 164Z"
+                  />
+                  <path
+                    class="tb-seam"
+                    d="M26 168C70 178 180 180 240 166"
+                  />
+                  <g class="tb-face" id="tbFace">
+                    <g class="tb-brow tb-brow--l" id="browL">
+                      <rect x="-28" y="-5" width="56" height="9" rx="4.5" />
+                    </g>
+                    <g class="tb-brow tb-brow--r" id="browR">
+                      <rect x="-28" y="-5" width="56" height="9" rx="4.5" />
+                    </g>
+                    <g class="tb-eye tb-eye--l">
+                      <ellipse class="tb-eye__white" cx="94" cy="96" rx="25" ry="27" />
+                      <circle class="tb-pupil" id="pupilL" cx="94" cy="96" r="11" />
+                      <ellipse class="tb-lid" id="lidL" cx="94" cy="96" rx="26" ry="28" />
+                    </g>
+                    <g class="tb-eye tb-eye--r">
+                      <ellipse class="tb-eye__white" cx="168" cy="96" rx="25" ry="27" />
+                      <circle class="tb-pupil" id="pupilR" cx="168" cy="96" r="11" />
+                      <ellipse class="tb-lid" id="lidR" cx="168" cy="96" rx="26" ry="28" />
+                    </g>
+                    <path class="tb-mouth" id="tbMouth" d="M104 142 Q131 154 158 142" />
+                    <circle class="tb-sweat" id="tbSweat" cx="208" cy="92" r="7" />
+                  </g>
+                  <circle class="tb-led" id="tbLed" cx="226" cy="40" r="7" />
+                </svg>
+                <span class="tbutton__label" id="btnLabel" data-t="btnDefault">PRESS ME. OR DON&rsquo;T.</span>
+                <span class="tbutton__hold" id="holdRing" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <!-- fake diagnostic overlay -->
+            <div class="diagnostic" id="diagnosticOverlay" hidden aria-hidden="true">
+              <pre class="diagnostic__out" id="diagnosticOut"></pre>
+            </div>
+
+            <button class="recall" id="recallBtn" type="button" hidden data-t="recallBtn">
+              ⟵ CALL THE BUTTON BACK
+            </button>
+
+            <p class="stage__hint" id="stageHint" data-t="stageHint">
+              TIP: it responds to clicks, taps, patience and a long press. Keyboard works too.
+            </p>
+          </div>
+
+          <!-- diagnostics rail -->
+          <aside class="rail" aria-label="Button diagnostics">
+            <div class="panel">
+              <h3 class="panel__title" data-t="trustMeter">TRUST METER</h3>
+              <div
+                class="meter"
+                id="trustMeter"
+                role="meter"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="50"
+                aria-label="Button trust level"
+              >
+                <div class="meter__fill" id="trustFill" style="width: 50%"></div>
+                <div class="meter__ticks" aria-hidden="true"></div>
+              </div>
+              <p class="meter__read">
+                <b id="trustValue">50%</b>
+                <span id="trustWord">CONDITIONAL</span>
+              </p>
+
+              <h3 class="panel__title panel__title--gap" data-t="suspicionTitle">SUSPICION</h3>
+              <div
+                class="meter meter--alt"
+                id="suspicionMeter"
+                role="meter"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="10"
+                aria-label="Button suspicion level"
+              >
+                <div class="meter__fill" id="suspicionFill" style="width: 10%"></div>
+              </div>
+              <p class="meter__read">
+                <b id="suspicionValue">LOW</b>
+                <span id="suspicionPeak">PEAK: LOW</span>
+              </p>
+            </div>
+
+            <div class="panel panel--count">
+              <h3 class="panel__title" data-t="interactionsTitle">INTERACTIONS</h3>
+              <p class="counter" id="countValue">0</p>
+              <p class="panel__foot" id="countFoot">ALL OF THEM UNINVITED</p>
+            </div>
+
+            <div class="panel panel--diag">
+              <h3 class="panel__title" data-t="diagnosticsTitle">DIAGNOSTICS</h3>
+              <dl class="diaglist">
+                <div class="diaglist__row">
+                  <dt data-t="dtState">STATE</dt>
+                  <dd id="diagMood">CAUTIOUS</dd>
+                </div>
+                <div class="diaglist__row">
+                  <dt data-t="dtPosture">POSTURE</dt>
+                  <dd id="diagPosture">GUARDED</dd>
+                </div>
+                <div class="diaglist__row">
+                  <dt data-t="dtSession">SESSION</dt>
+                  <dd id="diagUptime">00:00</dd>
+                </div>
+                <div class="diaglist__row">
+                  <dt data-t="dtSecrets">SECRETS</dt>
+                  <dd id="diagSecrets">0 / 7</dd>
+                </div>
+              </dl>
+              <p class="diaglist__note" id="diagNote" data-t="diagNoteDefault">Awaiting unnecessary input.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ INCIDENT LOG ============ -->
+      <section class="logsec" aria-labelledby="logHeading">
+        <h2 class="section-head" id="logHeading">
+          <span class="section-head__num">02</span>
+          <span class="section-head__text" data-t="logHeading">THE INCIDENT LOG</span>
+          <span class="section-head__rule" aria-hidden="true"></span>
+          <span class="section-head__meta" data-t="logMeta">LAST 7 ENTRIES · FILED AUTOMATICALLY</span>
+        </h2>
+        <ol class="log" id="logList" aria-live="polite" aria-relevant="additions"></ol>
+        <p class="logsec__disclaimer" data-t="logDisclaimer">
+          Entries are fictional. The button has no legal authority, no filing cabinet and no manager.
+        </p>
+      </section>
+
+      <!-- ============ SECRETS ============ -->
+      <section class="secrets" aria-labelledby="secretsHeading">
+        <h2 class="section-head" id="secretsHeading">
+          <span class="section-head__num">03</span>
+          <span class="section-head__text" data-t="secretsHeading">THINGS THE BUTTON DOESN&rsquo;T WANT YOU TO FIND</span>
+          <span class="section-head__rule" aria-hidden="true"></span>
+          <span class="section-head__meta" id="secretProgress">0 / 7 RECOVERED</span>
+        </h2>
+        <div class="secret-grid" id="secretGrid"></div>
+
+        <div class="finale" id="finaleCard" data-unlocked="false">
+          <div class="finale__inner">
+            <p class="finale__kicker" data-t="finaleKicker">FINAL ACHIEVEMENT · CLASSIFICATION: EMBARRASSING</p>
+            <h3 class="finale__title" id="finaleTitle" data-t="finaleTeaser">[ SEALED UNTIL ALL 7 ARE RECOVERED ]</h3>
+            <p class="finale__text" id="finaleText" data-t="finaleText">
+              The button insists there is nothing else. The button is lying — there are
+              <b>7</b> documents, and it signed every one of them.
+            </p>
+            <button class="btn-brut" id="finaleBtn" type="button" disabled data-t="finaleBtnText">
+              OPEN THE CERTIFICATE
+            </button>
+          </div>
+          <svg class="finale__seal" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="54" class="seal-ring" />
+            <circle cx="60" cy="60" r="44" class="seal-ring seal-ring--thin" />
+            <path id="sealPath" d="M60,16 a44,44 0 1,1 -0.1,0" fill="none" />
+            <text class="seal-text">
+              <textPath href="#sealPath" startOffset="0">
+                DEPARTMENT OF UNNECESSARY INTERACTIONS · CERTIFIED ·
+              </textPath>
+            </text>
+            <text x="60" y="68" class="seal-mark" text-anchor="middle">001</text>
+          </svg>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="footer">
+      <div class="footer__col">
+        <p class="footer__legal" data-t="footerLegal">© 2026 DEPARTMENT OF UNNECESSARY INTERACTIONS</p>
+        <p class="footer__micro" data-t="footerMicro">Your clicks have been recorded by a button with no legal authority.</p>
+      </div>
+      <div class="footer__col footer__col--keys">
+        <p class="keyhint">
+          <kbd>SPACE</kbd> <span data-t="keyPress">press</span> · <kbd>ESC</kbd> <span data-t="keyDismiss">dismiss</span> · <kbd>R</kbd> <span data-t="keyReset">reset</span> ·
+          <span class="keyhint__tease" data-t="footerKeyTease">one five-letter word is also listening</span>
+        </p>
+      </div>
+      <div class="footer__col footer__col--action">
+        <button class="btn-brut btn-brut--danger" id="resetBtn" type="button" data-t="resetBtn">
+          RESET THE RELATIONSHIP
+        </button>
+      </div>
+    </footer>
+
+    <!-- ============ OVERLAYS ============ -->
+    <!-- document / about modal -->
+    <div class="modal" id="docModal" hidden>
+      <div class="modal__scrim" data-close="1"></div>
+      <div
+        class="modal__sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="docModalTitle"
+        id="docSheet"
+      >
+        <div class="modal__bar">
+          <span class="modal__kicker" id="docModalKicker">CLASSIFIED</span>
+          <button class="modal__x" id="docModalClose" type="button" aria-label="Close document">
+            ✕
+          </button>
+        </div>
+        <div class="modal__body" id="docModalBody">
+          <h3 id="docModalTitle">Document</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- confirm modal -->
+    <div class="modal modal--small" id="confirmModal" hidden>
+      <div class="modal__scrim" data-close="1"></div>
+      <div
+        class="modal__sheet"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirmTitle"
+        aria-describedby="confirmText"
+      >
+        <div class="modal__bar modal__bar--danger">
+          <span class="modal__kicker" id="confirmKicker" data-t="confirmKicker">TERMINATION OF RELATIONSHIP</span>
+          <button class="modal__x" id="confirmNo2" type="button" aria-label="Cancel" data-t-aria="closeModal">✕</button>
+        </div>
+        <div class="modal__body">
+          <h3 id="confirmTitle" data-t="confirmTitle">Erase everything?</h3>
+          <p id="confirmText" data-t="confirmBody">
+            This deletes every interaction, every secret and the button&rsquo;s entire memory of you.
+            It will act like nothing happened. It is very good at that.
+          </p>
+          <div class="modal__actions">
+            <button class="btn-brut" id="confirmNo" type="button" data-t="confirmOk">NO, WE&rsquo;RE FINE</button>
+            <button class="btn-brut btn-brut--danger" id="confirmYes" type="button" data-t="confirmCancel">
+              YES, WIPE IT
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- permission form modal -->
+    <div class="modal" id="formModal" hidden>
+      <div class="modal__scrim" data-close="1"></div>
+      <div
+        class="modal__sheet modal__sheet--form"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="formTitle"
+      >
+        <div class="modal__bar modal__bar--blue">
+          <span class="modal__kicker" data-t="formKicker">FORM B-12 · PERMISSION TO PRESS</span>
+          <button class="modal__x" id="formClose" type="button" aria-label="Close form">✕</button>
+        </div>
+        <div class="modal__body">
+          <h3 id="formTitle" data-t="formTitle">REQUEST FOR CONTINUED ACCESS</h3>
+          <p class="form__intro" data-t="formIntro">
+            The button has introduced paperwork. This is not legally binding. It is barely
+            emotionally binding.
+          </p>
+          <label class="form__field">
+            <span data-t="formFieldLabel">FULL NAME OF PRESSER (or an alias, it can&rsquo;t verify anything)</span>
+            <input type="text" id="formName" maxlength="24" placeholder="e.g. A. Stranger" data-t-placeholder="formPlaceholder" />
+          </label>
+          <label class="form__check">
+            <input type="checkbox" id="formCheck" />
+            <span data-t="formCheckLabel">I confirm I am pressing this button for no good reason.</span>
+          </label>
+          <div class="modal__actions">
+            <button class="btn-brut" id="formDecline" type="button" data-t="formDecline">DECLINE POLITELY</button>
+            <button class="btn-brut btn-brut--accent" id="formSubmit" type="button" data-t="formSubmitBtn">
+              SUBMIT FORM B-12
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- discovery toast -->
+    <div class="toast" id="toast" hidden>
+      <span class="toast__mark" aria-hidden="true">✦</span>
+      <div>
+        <p class="toast__kicker" id="toastKicker">DOCUMENT RECOVERED</p>
+        <p class="toast__title" id="toastTitle">THE HR COMPLAINT</p>
+      </div>
+      <button class="toast__read" id="toastRead" type="button" data-t="toastRead">READ</button>
+    </div>
+
+    <!-- screen-reader live status -->
+    <p class="sr-only" id="srStatus" role="status" aria-live="polite"></p>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>
