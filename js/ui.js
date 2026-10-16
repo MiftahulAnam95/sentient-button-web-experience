@@ -12,7 +12,6 @@ import {
   moodGlyph,
   moodPosture,
   moodNote,
-  moodBtnLabel,
   trustWord as tTrustWord,
   suspicionWordLabel,
   countFootLine,
@@ -29,6 +28,8 @@ export const el = {
   moodGlyph: $("moodGlyph"),
   soundToggle: $("soundToggle"),
   soundState: $("soundState"),
+  langToggle: $("langToggle"),
+  langCurrent: $("langCurrent"),
   aboutBtn: $("aboutBtn"),
   tickerTrack: $("tickerTrack"),
   // hero
@@ -81,6 +82,9 @@ export const el = {
   docModalKicker: $("docModalKicker"),
   docModalClose: $("docModalClose"),
   confirmModal: $("confirmModal"),
+  confirmKicker: $("confirmKicker"),
+  confirmTitle: $("confirmTitle"),
+  confirmText: $("confirmText"),
   confirmYes: $("confirmYes"),
   confirmNo: $("confirmNo"),
   confirmNo2: $("confirmNo2"),
@@ -225,6 +229,7 @@ export function setAlarm(on) {
 
 export function renderMeters() {
   const s = getState();
+  const isID = getLang() === "id";
   if (el.trustFill) el.trustFill.style.width = `${s.trust}%`;
   if (el.trustMeter) el.trustMeter.setAttribute("aria-valuenow", String(Math.round(s.trust)));
   if (el.trustValue) el.trustValue.textContent = `${Math.round(s.trust)}%`;
@@ -237,7 +242,12 @@ export function renderMeters() {
     el.suspicionMeter.setAttribute("aria-valuetext", suspicionWord());
   }
   if (el.suspicionValue) el.suspicionValue.textContent = suspicionWordLabel(s.suspicion, suspicionWord());
-  if (el.suspicionPeak) el.suspicionPeak.textContent = `${getLang() === "id" ? "PEAK" : "PEAK"}: ${suspicionWordLabel(s.peakSuspicion, suspicionWord(s.peakSuspicion))}`;
+  if (el.suspicionPeak) {
+    el.suspicionPeak.textContent = `${isID ? "PUNCAK" : "PEAK"}: ${suspicionWordLabel(
+      s.peakSuspicion,
+      suspicionWord(s.peakSuspicion)
+    )}`;
+  }
   if (el.countValue) el.countValue.textContent = String(s.interactions);
 }
 
@@ -292,61 +302,58 @@ export function clearLog() {
   if (el.logList) el.logList.innerHTML = "";
 }
 
-/* ---------- ticker ---------- */
+/* ---------- ticker & bilingual DOM sync ---------- */
 
-/**
- * applyLanguage() — sweep the entire DOM for data-t attributes and swap their
- * innerHTML with the translated string from lang/UI_ID. Also updates the
- * <html lang>, <title>, meta description, aria-labels, and rebuilds the ticker.
- *
- * This is called once at boot and again every time the user toggles the
- * language switch. The mood, meter, and counter rendering are re-triggered
- * by the calling code in script.js.
- */
 export function applyLanguage() {
   const isID = getLang() === "id";
   const root = document.getElementById("rootHtml");
   if (root) root.lang = isID ? "id" : "en";
 
   document.title = isID
-    ? "TOMBOL PUNYA MASALAH KEPERCAYAAN — TBHTI®"
+    ? "SI TOMBOL PUNYA TRUST ISSUES — TBHTI®"
     : "THE BUTTON HAS TRUST ISSUES — TBHTI®";
 
   // swap meta description
   const meta = document.querySelector('meta[name="description"]');
   if (meta) {
     meta.content = isID
-      ? "TOMBOL PUNYA MASALAH KEPERCAYAAN — eksperimen interaktif tentang ketidakpercayaan. Satu tombol yang punya perasaan, delapan mood, tujuh rahasia terklasifikasi."
+      ? "SI TOMBOL PUNYA TRUST ISSUES — eksperimen interaktif soal trust issue parah. Satu tombol baperan, delapan mood swing, tujuh dokumen aib."
       : "THE BUTTON HAS TRUST ISSUES — an interactive experiment in distrust. One sentient button, eight moods, seven classified secrets.";
   }
 
   // aria-labels
   const rail = el.trustMeter?.closest?.("aside");
-  if (rail) rail.setAttribute("aria-label", isID ? "Diagnostik tombol" : "Button diagnostics");
+  if (rail) rail.setAttribute("aria-label", isID ? "Diagnostik mental tombol" : "Button diagnostics");
 
-  // data-t="key" -> innerHTML = t("key", originalInnerHTML)
+  // data-t="key" -> innerHTML = t("key", originalEnglishInnerHTML)
   document.querySelectorAll("[data-t]").forEach((node) => {
     const key = node.dataset.t;
-    const fallback = node.innerHTML;
-    node.innerHTML = t(key, fallback);
+    if (node.dataset.tEn === undefined) {
+      node.dataset.tEn = node.innerHTML;
+    }
+    node.innerHTML = t(key, node.dataset.tEn);
   });
 
   // placeholder
   document.querySelectorAll("[data-t-placeholder]").forEach((input) => {
     const key = input.dataset.tPlaceholder;
-    const fallback = input.placeholder;
-    input.placeholder = t(key, fallback);
+    if (input.dataset.tPlaceholderEn === undefined) {
+      input.dataset.tPlaceholderEn = input.placeholder;
+    }
+    input.placeholder = t(key, input.dataset.tPlaceholderEn);
   });
 
-  // data-t-aria="key" -> aria-label = t("key", original)
+  // data-t-aria="key" -> aria-label = t("key", originalEnglishAria)
   document.querySelectorAll("[data-t-aria]").forEach((node) => {
     const key = node.dataset.tAria;
-    const fallback = node.getAttribute("aria-label") || "";
-    node.setAttribute("aria-label", t(key, fallback));
+    if (node.dataset.tAriaEn === undefined) {
+      node.dataset.tAriaEn = node.getAttribute("aria-label") || "";
+    }
+    node.setAttribute("aria-label", t(key, node.dataset.tAriaEn));
   });
 
   initTicker();
-  announce(isID ? "Bahasa diganti ke Indonesia." : "Language switched to English.");
+  announce(isID ? "Mode Bahasa Indonesia (Gaul Gen-Z) aktif." : "Language switched to English.");
 }
 
 export function initTicker() {
